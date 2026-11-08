@@ -79,6 +79,8 @@ target_compile_features(ECSTest PRIVATE cxx_std_20)
 
 target_link_libraries(ECS PUBLIC SFML::Graphics SFML::Audio)
 target_link_libraries(ECSTest PRIVATE ECS)
+# Lets the tests load real textures/sounds no matter which folder they run from.
+target_compile_definitions(ECSTest PRIVATE ECS_TEST_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/")
 
 enable_warnings(ECS)
 enable_warnings(ECSTest)

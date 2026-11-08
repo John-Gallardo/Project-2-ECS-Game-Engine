@@ -2,12 +2,18 @@
 //   cmake --build build --target ECSTest && ./build/engine/ECSTest
 // Exit code is 0 when every check passes, 1 otherwise.
 
+#include <cstdint>
 #include <cstdio>
 #include <iterator>
+#include <stdexcept>
+#include <streambuf>
 #include <string>
 #include <vector>
 
 #include "EntityManager.h"
+#include "SoundManager.h"
+#include "SpriteManager.h"
+#include <SFML/System/Err.hpp>
 
 namespace {
 
@@ -235,6 +241,158 @@ void TestHasComponentWorksOnConstManager() {
     CHECK(view.IsValid(a));
 }
 
+// ------------------------------------------------------------ test helpers
+
+const std::string kAssets = ECS_TEST_ASSET_DIR;
+const std::string kTiles = kAssets + "spritesheet-tiles-default.png";            // 1152x1152
+const std::string kCharacters = kAssets + "spritesheet-characters-default.png";  // 1024x1024
+const std::string kJump = kAssets + "sfx_jump.ogg";
+const std::string kGem = kAssets + "sfx_gem.ogg";
+const ECSEngine::Rect kTile{{128.f, 64.f}, 64.f, 32.f};
+
+// True if fn throws a std::runtime_error.
+template <typename Fn>
+bool ThrowsRuntimeError(Fn&& fn) {
+    try {
+        fn();
+    } catch (const std::runtime_error&) {
+        return true;
+    }
+    return false;
+}
+
+// Hides SFML's own "failed to load" messages while a test expects a failure.
+class QuietSfmlErrors {
+public:
+    QuietSfmlErrors() : mOld(sf::err().rdbuf(nullptr)) {}
+    ~QuietSfmlErrors() { sf::err().rdbuf(mOld); }
+
+private:
+    std::streambuf* mOld;
+};
+
+// Loads a sound file independently of the SoundManager, to compare against.
+std::uint64_t SampleCount(const std::string& path) {
+    sf::SoundBuffer buffer;
+    if (!buffer.loadFromFile(path)) return 0;
+    return buffer.getSampleCount();
+}
+
+// ---------------------------------------------------------- sprite manager
+
+void TestSpriteIdsAreDistinct() {
+    ECSEngine::SpriteManager sm;
+    auto a = sm.RegisterTexture(kTiles, kTile);
+    auto b = sm.RegisterTexture(kTiles, kTile);
+    CHECK(a != b);
+}
+
+void TestSpriteUsesSourceRect() {
+    ECSEngine::SpriteManager sm;
+    auto id = sm.RegisterTexture(kTiles, kTile);
+    const sf::IntRect& r = sm.GetSprite(id).getTextureRect();
+    CHECK(r.position.x == 128);
+    CHECK(r.position.y == 64);
+    CHECK(r.size.x == 64);
+    CHECK(r.size.y == 32);
+}
+
+void TestSpriteLoadsTheRightFile() {
+    ECSEngine::SpriteManager sm;
+    auto tiles = sm.RegisterTexture(kTiles, kTile);
+    auto chars = sm.RegisterTexture(kCharacters, kTile);
+    CHECK(sm.GetSprite(tiles).getTexture().getSize().x == 1152);
+    CHECK(sm.GetSprite(chars).getTexture().getSize().x == 1024);
+}
+
+void TestSamePathSharesOneTexture() {
+    ECSEngine::SpriteManager sm;
+    auto a = sm.RegisterTexture(kTiles, kTile);
+    auto b = sm.RegisterTexture(kTiles, {{0.f, 0.f}, 64.f, 64.f});
+    auto c = sm.RegisterTexture(kCharacters, kTile);
+    CHECK(&sm.GetSprite(a).getTexture() == &sm.GetSprite(b).getTexture());
+    CHECK(&sm.GetSprite(a).getTexture() != &sm.GetSprite(c).getTexture());
+}
+
+void TestEarlierSpritesSurviveLaterRegistrations() {
+    ECSEngine::SpriteManager sm;
+    auto first = sm.RegisterTexture(kTiles, kTile);
+    const std::string sheets[] = {kTiles, kCharacters, kAssets + "spritesheet-enemies-default.png",
+                                  kAssets + "spritesheet-backgrounds-default.png"};
+    for (int i = 0; i < 25; ++i) {
+        for (const auto& sheet : sheets) (void)sm.RegisterTexture(sheet, kTile);
+    }
+    CHECK(sm.GetSprite(first).getTexture().getSize().x == 1152);
+    CHECK(sm.GetSprite(first).getTextureRect().position.x == 128);
+}
+
+void TestMissingTextureThrowsAndAddsNothing() {
+    ECSEngine::SpriteManager sm;
+    {
+        QuietSfmlErrors quiet;
+        CHECK(ThrowsRuntimeError([&] { (void)sm.RegisterTexture(kAssets + "missing.png", kTile); }));
+    }
+    auto id = sm.RegisterTexture(kTiles, kTile);
+    CHECK(id == 0);  // the failed load did not take up a sprite slot
+}
+
+// ----------------------------------------------------------- sound manager
+
+void TestSoundUsesRegisteredFile() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "jump");
+    CHECK(SampleCount(kJump) > 0);
+    CHECK(sm.GetSound("jump").getBuffer().getSampleCount() == SampleCount(kJump));
+}
+
+void TestSoundsAreLookedUpByName() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "jump");
+    sm.RegisterSound(kGem, "gem");
+    CHECK(SampleCount(kJump) != SampleCount(kGem));  // the two files really differ
+    CHECK(sm.GetSound("jump").getBuffer().getSampleCount() == SampleCount(kJump));
+    CHECK(sm.GetSound("gem").getBuffer().getSampleCount() == SampleCount(kGem));
+}
+
+void TestSamePathSharesOneBuffer() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "jump");
+    sm.RegisterSound(kJump, "land");
+    CHECK(&sm.GetSound("jump").getBuffer() == &sm.GetSound("land").getBuffer());
+    CHECK(&sm.GetSound("jump") != &sm.GetSound("land"));  // can play at the same time
+}
+
+void TestReRegisteringNameReplacesSound() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "fx");
+    sm.RegisterSound(kGem, "fx");
+    CHECK(sm.GetSound("fx").getBuffer().getSampleCount() == SampleCount(kGem));
+}
+
+void TestSoundReferenceSurvivesMoreRegistrations() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "first");
+    sf::Sound* first = &sm.GetSound("first");
+    for (int i = 0; i < 50; ++i) sm.RegisterSound(kGem, "gem" + std::to_string(i));
+    CHECK(&sm.GetSound("first") == first);
+    CHECK(sm.GetSound("first").getBuffer().getSampleCount() == SampleCount(kJump));
+}
+
+void TestUnknownSoundNameThrows() {
+    ECSEngine::SoundManager sm;
+    sm.RegisterSound(kJump, "jump");
+    CHECK(ThrowsRuntimeError([&] { (void)sm.GetSound("jmup"); }));
+}
+
+void TestMissingSoundFileThrowsAndAddsNothing() {
+    ECSEngine::SoundManager sm;
+    {
+        QuietSfmlErrors quiet;
+        CHECK(ThrowsRuntimeError([&] { sm.RegisterSound(kAssets + "missing.ogg", "bad"); }));
+    }
+    CHECK(ThrowsRuntimeError([&] { (void)sm.GetSound("bad"); }));
+}
+
 struct NamedTest {
     const char* name;
     void (*fn)();
@@ -260,6 +418,19 @@ int main() {
         {"FreedComponentSlotIsReused", TestFreedComponentSlotIsReused},
         {"StorageRecordsOwnerOfEachSlot", TestStorageRecordsOwnerOfEachSlot},
         {"HasComponentWorksOnConstManager", TestHasComponentWorksOnConstManager},
+        {"SpriteIdsAreDistinct", TestSpriteIdsAreDistinct},
+        {"SpriteUsesSourceRect", TestSpriteUsesSourceRect},
+        {"SpriteLoadsTheRightFile", TestSpriteLoadsTheRightFile},
+        {"SamePathSharesOneTexture", TestSamePathSharesOneTexture},
+        {"EarlierSpritesSurviveLaterRegistrations", TestEarlierSpritesSurviveLaterRegistrations},
+        {"MissingTextureThrowsAndAddsNothing", TestMissingTextureThrowsAndAddsNothing},
+        {"SoundUsesRegisteredFile", TestSoundUsesRegisteredFile},
+        {"SoundsAreLookedUpByName", TestSoundsAreLookedUpByName},
+        {"SamePathSharesOneBuffer", TestSamePathSharesOneBuffer},
+        {"ReRegisteringNameReplacesSound", TestReRegisteringNameReplacesSound},
+        {"SoundReferenceSurvivesMoreRegistrations", TestSoundReferenceSurvivesMoreRegistrations},
+        {"UnknownSoundNameThrows", TestUnknownSoundNameThrows},
+        {"MissingSoundFileThrowsAndAddsNothing", TestMissingSoundFileThrowsAndAddsNothing},
     };
 
     int failedTests = 0;
