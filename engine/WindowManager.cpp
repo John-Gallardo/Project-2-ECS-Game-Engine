@@ -20,17 +20,41 @@ Rect WindowManager::GetWindowBounds() const {
 }
 
 /**
- * TODO:
+ * Draws the rectangle in window coordinates onto the screen
  */
 void WindowManager::DebugDrawRect(const Rect& r, int red, int green, int blue, int alpha) {
-
+    // 1. Create rectangle and set position + color accordingly
+    sf::RectangleShape rectangle{sf::Vector2f{r.width, r.height}};
+    rectangle.setPosition({r.topLeft.x, r.topLeft.y});
+    rectangle.setFillColor(sf::Color{
+        static_cast<uint8_t>(red),
+        static_cast<uint8_t>(green),
+        static_cast<uint8_t>(blue),
+        static_cast<uint8_t>(alpha)
+    });
+    
+    // 2. Draw the rectangle
+    mWindow->draw(rectangle);
 }
 
 /**
- * TODO:
+ * Draws the rectangle's outline in window coordinates onto the screen
  */
 void WindowManager::DebugFrameRect(const Rect& r, int red, int green, int blue, int alpha) {
+    // 1. Create rectangle and set position, color, outline color, and outline thickness accordingly
+    sf::RectangleShape rectangle{sf::Vector2f{r.width, r.height}};
+    rectangle.setPosition({r.topLeft.x, r.topLeft.y});
+    rectangle.setFillColor(sf::Color::Transparent);
+    rectangle.setOutlineColor(sf::Color{
+        static_cast<uint8_t>(red),
+        static_cast<uint8_t>(green),
+        static_cast<uint8_t>(blue),
+        static_cast<uint8_t>(alpha)
+    });
+    rectangle.setOutlineThickness(-1);  // negative values expand towards center of shape
 
+    // 2. Draw the rectangle
+    mWindow->draw(rectangle);
 }
 
 /**
@@ -49,28 +73,43 @@ Rect WindowManager::WindowToWorld(const Rect& rect) const {
  * Converts a point from window coordinates to world coordinates
  */
 Point2D WindowManager::WindowToWorld(const Point2D& pt) const {
-    // TODO: need other member variables
+    // Same formula as lab 9 exercise
+    // NOTE: applied on each axis separately since MathUtil.h doesn't supply operator+, etc... for Point2D
+    float newX{mWorldCenter.x - ((mWindow->getSize().x * 0.5f) * mWorldUnitsPerPixel) + (pt.x * mWorldUnitsPerPixel)};
+    float newY{mWorldCenter.y - ((mWindow->getSize().y * 0.5f) * mWorldUnitsPerPixel) + (pt.y * mWorldUnitsPerPixel)};
+    return Point2D{newX, newY};
 }
 
 /**
- * TODO:
+ * Converts the rectangle from world coordinates to window coordinates
  */
 Rect WindowManager::WorldToWindow(const Rect& rect) const {
-    return Rect();
+    Point2D newTopLeft{WorldToWindow(rect.topLeft)};
+    float newWidth{WorldToWindow(rect.width)};
+    float newHeight{WorldToWindow(rect.height)};
+    return Rect{newTopLeft, newWidth, newHeight};
 }
 
 /**
- * TODO:
+ * Converts a point from world coordinates to window coordinates
  */
 Point2D WindowManager::WorldToWindow(const Point2D& pt) const {
-    return Point2D();
+    // Same formula as lab 9 exercise
+    // NOTE: applied on each axis separately since MathUtil.h doesn't supply operator+, etc... for Point2D
+    float newX{(pt.x - (mWorldCenter.x - ((mWindow->getSize().x * 0.5f) * mWorldUnitsPerPixel))) / mWorldUnitsPerPixel};
+    float newY{(pt.y - (mWorldCenter.y - ((mWindow->getSize().y * 0.5f) * mWorldUnitsPerPixel))) / mWorldUnitsPerPixel};
+    return Point2D{newX, newY};
 }
 
 /**
  * Sets the camera by making the given worldPt and screenPt correspond to each other
  */
 void WindowManager::SetCamera(const Point2D& worldPt, const Point2D& screenPt) {
-    // TODO:
+    // Same formula as lab 9 exercise
+    // NOTE: applied on each axis separately since MathUtil.h doesn't supply operator+, etc... for Point2D
+    float worldCenterX = worldPt.x - screenPt.x * mWorldUnitsPerPixel + mWindow->getSize().x * 0.5f * mWorldUnitsPerPixel;
+    float worldCenterY = worldPt.y - screenPt.y * mWorldUnitsPerPixel + mWindow->getSize().y * 0.5f * mWorldUnitsPerPixel;
+    mWorldCenter = Point2D{worldCenterX, worldCenterY};
 }
 
 /**
@@ -102,10 +141,17 @@ void WindowManager::SetWorldScale(float worldUnitsPerPixel) {
 }
 
 /**
- * Sets the world rect
+ * Sets the world rect by
+ * 1. setting mWorldCenter to the center of the rectangle
+ * NOTE: scale isn't set, not sure if that's what's expected
  */
 void WindowManager::SetWorldRect(const Rect& worldCameraRect) {
-    mWorldCameraRect = worldCameraRect;
+    // 1. grab center of rectangle in WORLD coordinates & then set
+    // NOTE: operator+, etc... isn't supported by MathUtil.h for Point2D
+    float rectMidX{worldCameraRect.topLeft.x + worldCameraRect.width / 2};
+    float rectMidY{worldCameraRect.topLeft.y + worldCameraRect.height / 2};
+    mWorldCenter = Point2D{rectMidX, rectMidY};
+
 }
 
 /**

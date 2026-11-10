@@ -36,7 +36,6 @@ private:
     std::shared_ptr<sf::RenderWindow> mWindow;
     // Member variables for camera, world center, etc...
     Point2D mWorldCenter;
-    Rect mWorldCameraRect;
     float mWorldUnitsPerPixel;
 };
 
