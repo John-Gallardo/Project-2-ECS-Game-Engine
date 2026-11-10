@@ -1,5 +1,6 @@
 // Unit tests for the ECS engine. Build and run the ECSTest target:
-//   cmake --build build --target ECSTest && ./build/engine/ECSTest
+//   cmake --build build --target ECSTest && cd build/engine && ./ECSTest
+// or from anywhere: ./ECSTest -path <assets folder>/
 // Exit code is 0 when every check passes, 1 otherwise.
 
 #include <cstdint>
@@ -243,11 +244,18 @@ void TestHasComponentWorksOnConstManager() {
 
 // ------------------------------------------------------------ test helpers
 
-const std::string kAssets = ECS_TEST_ASSET_DIR;
-const std::string kTiles = kAssets + "spritesheet-tiles-default.png";            // 1152x1152
-const std::string kCharacters = kAssets + "spritesheet-characters-default.png";  // 1024x1024
-const std::string kJump = kAssets + "sfx_jump.ogg";
-const std::string kGem = kAssets + "sfx_gem.ogg";
+// Asset folder, like the platformer's gResourcePath. The default works when run
+// from build/engine (CMake copies assets/ into build/); override with -path.
+std::string kAssets = "../assets/";
+std::string kTiles, kCharacters, kJump, kGem;
+
+void SetAssetPath(const std::string& path) {
+    kAssets = path;
+    kTiles = kAssets + "spritesheet-tiles-default.png";            // 1152x1152
+    kCharacters = kAssets + "spritesheet-characters-default.png";  // 1024x1024
+    kJump = kAssets + "sfx_jump.ogg";
+    kGem = kAssets + "sfx_gem.ogg";
+}
 const ECSEngine::Rect kTile{{128.f, 64.f}, 64.f, 32.f};
 
 // True if fn throws a std::runtime_error.
@@ -400,7 +408,14 @@ struct NamedTest {
 
 }  // namespace
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc >= 3 && argv[1] == std::string("-path")) {
+        SetAssetPath(argv[2]);
+    } else {
+        SetAssetPath(kAssets);
+    }
+    std::printf("Using asset path: %s\n", kAssets.c_str());
+
     const NamedTest tests[] = {
         {"CreateGivesDistinctIds", TestCreateGivesDistinctIds},
         {"IterationVisitsCreatedEntities", TestIterationVisitsCreatedEntities},

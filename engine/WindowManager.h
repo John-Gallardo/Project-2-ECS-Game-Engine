@@ -36,7 +36,7 @@ private:
     std::shared_ptr<sf::RenderWindow> mWindow;
     // Member variables for camera, world center, etc...
     Point2D mWorldCenter;
-    float mWorldUnitsPerPixel;
+    float mWorldUnitsPerPixel = 1.0f;  // 1:1 until the game sets a scale
 };
 
 }  // namespace ECSEngine
