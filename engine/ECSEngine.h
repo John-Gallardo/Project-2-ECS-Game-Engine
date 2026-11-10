@@ -175,7 +175,14 @@ void ECSEngine<Components...>::DebugDraw() {
     for (size_t i = 0; i < collisions.mStorage.size(); ++i) {
         if (!collisions.mValid[i]) continue;
         const CollisionComponent& c = collisions.mStorage[i];
-        const Rect box = mWindowManager.WorldToWindow(c.collisionBox);
+        // The box is stored relative to the entity's location.
+        Rect box = c.collisionBox;
+        const EntityID owner = collisions.mOwner[i];
+        if (mEntityManager.template HasComponent<LocationComponent>(owner)) {
+            const Point2D& loc = mEntityManager.template GetComponent<LocationComponent>(owner).loc;
+            box.topLeft = Point2D{box.topLeft.x + loc.x, box.topLeft.y + loc.y};
+        }
+        box = mWindowManager.WorldToWindow(box);
         if (c.staticEntity) {
             mWindowManager.DebugFrameRect(box, 0, 255, 0);
         } else {
