@@ -26,6 +26,9 @@
 #include "SpriteSystem.h"
 
 std::string gResourcePath = "../assets/";
+const unsigned int kWindowWidth = 1024;
+const unsigned int kWindowHeight = 768;
+
 #define COMPONENTS                                                                             \
     ECSEngine::LocationComponent, ECSEngine::MovementComponent, ECSEngine::CollisionComponent, \
         ECSEngine::SpriteComponent, ECSEngine::SpawnComponent, ECSEngine::CameraComponent,     \
@@ -149,19 +152,78 @@ int main(int argc, char* argv[]) {
     std::cout << "Using resource path: " << gResourcePath << "\n";
 
     // Engine test code
-    Engine engine(1024, 768, "Test Engine");
+    Engine engine(kWindowWidth, kWindowHeight, "Test Engine");
+    auto& entities = engine.GetEntityManager();
+    auto& sprites = engine.GetSpriteManager();
 
     // Load sounds
+    auto& sounds = engine.GetSoundManager();
+    sounds.RegisterSound(gResourcePath + "sfx_jump.ogg", "jump");
+    sounds.RegisterSound(gResourcePath + "sfx_gem.ogg", "star");
+    sounds.RegisterSound(gResourcePath + "footstep_snow_001.ogg", "wallslide");
+    sounds.RegisterSound(gResourcePath + "laserLarge_000.ogg", "dash");
+    sounds.RegisterSound(gResourcePath + "error_008.ogg", "hurt");
 
     // Load maps. The sky goes first so its sprites are drawn behind the world.
     LoadMap(engine, gResourcePath, "sky.map");
     LoadMap(engine, gResourcePath, "world.map");
 
     // Place player
+    const ECSEngine::Point2D kPlayerStart{832.f, 512.f};
+    const ECSEngine::SpriteID playerSprite = sprites.RegisterTexture(gResourcePath + "spritesheet-characters-default.png", {{0.0f, 0.0f}, 128.0f, 128.0f});
+
+    const ECSEngine::EntityID player = entities.CreateEntity("player");
+    // player components
+    entities.AddComponent(player, ECSEngine::LocationComponent{kPlayerStart});
+    entities.AddComponent(player, ECSEngine::MovementComponent{});
+    entities.AddComponent(player, ECSEngine::GravityComponent{{0.0f, 1.0f}});
+    entities.AddComponent(player, ECSEngine::InputComponent{player});
+    entities.AddComponent(player, ECSEngine::RespawnComponent{kPlayerStart});
+    entities.AddComponent(player, ECSEngine::SpriteComponent{playerSprite, {{0.0f, 0.0f}, 64.0f, 64.0f}, true});
+
+    ECSEngine::CollisionComponent playerCollision{};
+    playerCollision.collisionBox = {{12.0f, 12.0f}, 40.0f, 52.0f};
+    playerCollision.previousCollisionBox = playerCollision.collisionBox;
+    entities.AddComponent(player, playerCollision);
+    entities.AddComponent(player, ECSEngine::CameraFollower{player});
+
 
     // Setup score component
+    ECSEngine::ScoreComponent score{};
+    for (int d = 0; d < 10; ++d) {
+        // Digits are stacked 9 (top) to 0 (bottom) in one column of the tile sheet
+        score.digitTextureID[d] = sprites.RegisterTexture(gResourcePath + "spritesheet-tiles-default.png", {{832.0f, 832.0f - 64.0f * d}, 64.0f, 64.0f});
+    }
+
+    for (int i = 0; i < 3; ++i) {
+        const ECSEngine::EntityID digit = entities.CreateEntity("score digit");
+        entities.AddComponent(digit, ECSEngine::LocationComponent{{16.f + 40.f * i, 16.f}});
+        entities.AddComponent(digit,
+        ECSEngine::SpriteComponent{score.digitTextureID[0], {{0.f, 0.f}, 48.f, 48.f}, false});
+        score.digitID[i] = digit;
+    }
+
+    const ECSEngine::EntityID scoreEntity = entities.CreateEntity("score");
+    entities.AddComponent(scoreEntity, score);
 
     // Setup Camera
+    const float kWorldHeight = 14 * 64.0f;
+    const float w = static_cast<float>(kWindowWidth);
+    const float h = static_cast<float>(kWindowHeight);
+
+    ECSEngine::CameraComponent camera{};
+    camera.position = {kPlayerStart.x, kWorldHeight / 2};
+    camera.worldUnitsPerPixel = kWorldHeight / h;
+    camera.hardExclusion = {{0.1f * w, 0.0f}, 0.8f * w, h};
+    camera.softExclusion = {{0.3f * w, 0.0f}, 0.4f * w, h};
+    camera.speed = 0.05f;
+
+    const ECSEngine::EntityID cameraEntity = entities.CreateEntity("camera");
+    entities.AddComponent(cameraEntity, camera);
+    entities.AddComponent(cameraEntity, ECSEngine::CameraShake{0, {0.0f, 0.0f}});
+
+    engine.GetWindowManager().SetWorldScale(camera.worldUnitsPerPixel);
+    engine.GetWindowManager().SetWorldCenter(camera.position);
 
     // Add all systems
     auto& sm = engine.GetSystemManager();
