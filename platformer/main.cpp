@@ -133,6 +133,7 @@ void LoadMap(Engine& engine, const std::string& path, const std::string& file) {
             if (tile.solid) {
                 ECSEngine::CollisionComponent collision{};
                 collision.staticEntity = 1;
+                collision.doesDamage = (symbol == 'x');
                 collision.collisionBox = tile.collide;
                 collision.previousCollisionBox = tile.collide;
                 entities.AddComponent(id, collision);
@@ -166,6 +167,7 @@ int main(int argc, char* argv[]) {
     sounds.RegisterSound(gResourcePath + "footstep_snow_001.ogg", "wallslide");
     sounds.RegisterSound(gResourcePath + "laserLarge_000.ogg", "dash");
     sounds.RegisterSound(gResourcePath + "error_008.ogg", "hurt");
+    sounds.RegisterSound(gResourcePath + "footstep_grass_003.ogg", "land");
 
     // Load maps. The sky goes first so its sprites are drawn behind the world.
     LoadMap(engine, gResourcePath, "sky.map");
