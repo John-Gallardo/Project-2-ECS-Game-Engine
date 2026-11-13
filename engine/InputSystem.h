@@ -15,8 +15,9 @@ const float kDashInterval = 25;
 const int kDashFrames = 4;              // how long one dash lasts
 const float kWallSlideVelocity = 4;     // fastest fall speed while sliding down a wall
 const float kJumpCutFactor = 0.4f;      // letting go of jump early keeps 40% of the upward speed
-const float kWallJumpVelocity = 24;     // weaker than a ground jump: crossing the wide gap loses height
-const int kWallJumpLockFrames = 10;     // no steering right after a wall jump, so you can't climb one wall
+const float kWallJumpVelocity = 26;     // upward part of a wall jump
+const float kWallKickVelocity = 12;      // sideways push away from the wall
+const int kWallJumpLockFrames = 4;     // no steering right after kicking off a wall
 
 /**
  * Processes user input for player movement.
@@ -101,23 +102,25 @@ public:
                 }
                 velocity.x = std::clamp(velocity.x, -kMaxRunVelocity, kMaxRunVelocity);
             }
-            
+
             // Case 3: jump -> only jumps on a new press
             if (jumpPressed) {
                 if (onGround) {
                     velocity.y = -kJumpVelocity;
+                    mCanCutJump = true;
                     sounds.GetSound("jump").play();
-                } else if (onWall) {
-                    // wall jump up and away from the wall
-                    velocity.y = -kWallJumpVelocity;
-                    velocity.x = touching.onLeftWall ? kMaxRunVelocity : -kMaxRunVelocity;
+                } 
+                else if (onWall) {
+                    // always kick up and away; holding toward the wall afterwards brings you back
+                    velocity = {touching.onLeftWall ? kWallKickVelocity : -kWallKickVelocity, -kWallJumpVelocity};
                     mLastWallJump = mFrame;
+                    mCanCutJump = false;    // wall jumps always get full height
                     sounds.GetSound("jump").play();
                 }
             }
 
             // Case 3b: short hop -> letting go of jump while still going up cuts the jump
-            if (jumpReleased && velocity.y < 0) {
+            if (jumpReleased && mCanCutJump && velocity.y < 0) {
                 velocity.y *= kJumpCutFactor;
             }
 
@@ -142,6 +145,7 @@ private:
     // Count frames for dash timer
     int mFrame{};
     int mLastWallJump{-kWallJumpLockFrames};    // frame of the last wall jump
+    bool mCanCutJump{};                         // only ground jumps can be cut short
 
     // Helper function for checking if key is held down
     static bool Down(const InputComponent &input, unsigned int key) {

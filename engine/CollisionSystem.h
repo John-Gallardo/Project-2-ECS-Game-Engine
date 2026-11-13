@@ -188,70 +188,75 @@ private:
         const float bounce = isPlayer ? 0.0f : kStarBounce;
         const Rect& prev = c.previousCollisionBox;  // world space, saved by CollisionLateSystem
         const Rect start = WorldBox(c.collisionBox, loc);
-
-        for (int col = Cell(start.topLeft.x); col <= Cell(start.topLeft.x + start.width - kTouchEpsilon); ++col) {
-            for (int row = Cell(start.topLeft.y); row <= Cell(start.topLeft.y + start.height - kTouchEpsilon); ++row) {
-                auto cell = mGrid.find(CellKey(col, row));
-                if (cell == mGrid.end()) {
-                    continue;
-                }
-
-                for (const StaticBox& solid : cell->second) {
-                    // Recomputed each time: an earlier tile may already have pushed us
-                    const Rect box = WorldBox(c.collisionBox, loc);
-                    if (!Overlaps(box, solid.box)) {
+        for (int pass = 0; pass < 2; ++pass) {
+            for (int col = Cell(start.topLeft.x); col <= Cell(start.topLeft.x + start.width - kTouchEpsilon); ++col) {
+                for (int row = Cell(start.topLeft.y); row <= Cell(start.topLeft.y + start.height - kTouchEpsilon); ++row) {
+                    auto cell = mGrid.find(CellKey(col, row));
+                    if (cell == mGrid.end()) {
                         continue;
                     }
 
-                    if (solid.doesDamage && entities.template HasComponent<RespawnComponent>(owner)) {
-                        loc = entities.template GetComponent<RespawnComponent>(owner).loc;
-                        vel = {0.0f, 0.0f};
-                        engine->GetSoundManager().GetSound("hurt").play();
-                        return;
-                    }
+                    for (const StaticBox& solid : cell->second) {
+                        // Recomputed each time: an earlier tile may already have pushed us
+                        const Rect box = WorldBox(c.collisionBox, loc);
+                        if (!Overlaps(box, solid.box)) {
+                            continue;
+                        }
 
-                    const HitSide side = FindHitSide(box, prev, solid.box);
-                    float impact = 0; // speed going into the wall, for the screen shake
-                    Point2D direction;
-                    bool newHit{}; // only shake on the first frame of touching, not while pushing into it
-                    switch (side) {
-                        case HitSide::kTop: // landed on it
-                            loc.y -= box.topLeft.y + box.height - solid.box.topLeft.y;
-                            c.onGround = 1;
-                            newHit = !wasOnGround;
-                            impact = vel.y;
-                            direction = {0.0f, 1.0f};
-                            vel.y = -vel.y * bounce;
-                            break;
-                        case HitSide::kBottom:  // hit it with our head
-                            loc.y += solid.box.topLeft.y + solid.box.height - box.topLeft.y;
-                            c.onCeiling = 1;
-                            newHit = !wasOnCeiling;
-                            impact = -vel.y;
-                            direction = {0.0f, -1.0f};
-                            vel.y = -vel.y * bounce;
-                            break;
-                        case HitSide::kLeft:    // ran into it moving right, so the wall is on our right
-                            loc.x -= box.topLeft.x + box.width - solid.box.topLeft.x;
-                            c.onRightWall = 1;
-                            newHit = !wasOnRightWall;
-                            impact = vel.x;
-                            direction = {1.f, 0.f};
-                            vel.x = -vel.x * bounce;
-                            break;
-                        case HitSide::kRight:   // ran into it moving left
-                            loc.x += solid.box.topLeft.x + solid.box.width - box.topLeft.x;
-                            c.onLeftWall = 1;
-                            newHit = !wasOnLeftWall;
-                            impact = -vel.x;
-                            direction = {-1.f, 0.f};
-                            vel.x = -vel.x * bounce;
-                            break;
-                    }
+                        if (pass == 0 && IsCornerHit(prev, solid.box)) {
+                            continue;
+                        }
 
-                    if (isPlayer && shake && newHit && impact > kMinShakeSpeed) {
-                        shake->frameLimit = kShakeFrames;
-                        shake->offset = (impact * kShakePerSpeed) * direction;
+                        if (solid.doesDamage && entities.template HasComponent<RespawnComponent>(owner)) {
+                            loc = entities.template GetComponent<RespawnComponent>(owner).loc;
+                            vel = {0.0f, 0.0f};
+                            engine->GetSoundManager().GetSound("hurt").play();
+                            return;
+                        }
+
+                        const HitSide side = FindHitSide(box, prev, solid.box);
+                        float impact = 0; // speed going into the wall, for the screen shake
+                        Point2D direction;
+                        bool newHit{}; // only shake on the first frame of touching, not while pushing into it
+                        switch (side) {
+                            case HitSide::kTop: // landed on it
+                                loc.y -= box.topLeft.y + box.height - solid.box.topLeft.y;
+                                c.onGround = 1;
+                                newHit = !wasOnGround;
+                                impact = vel.y;
+                                direction = {0.0f, 1.0f};
+                                vel.y = -vel.y * bounce;
+                                break;
+                            case HitSide::kBottom:  // hit it with our head
+                                loc.y += solid.box.topLeft.y + solid.box.height - box.topLeft.y;
+                                c.onCeiling = 1;
+                                newHit = !wasOnCeiling;
+                                impact = -vel.y;
+                                direction = {0.0f, -1.0f};
+                                vel.y = -vel.y * bounce;
+                                break;
+                            case HitSide::kLeft:    // ran into it moving right, so the wall is on our right
+                                loc.x -= box.topLeft.x + box.width - solid.box.topLeft.x;
+                                c.onRightWall = 1;
+                                newHit = !wasOnRightWall;
+                                impact = vel.x;
+                                direction = {1.f, 0.f};
+                                vel.x = -vel.x * bounce;
+                                break;
+                            case HitSide::kRight:   // ran into it moving left
+                                loc.x += solid.box.topLeft.x + solid.box.width - box.topLeft.x;
+                                c.onLeftWall = 1;
+                                newHit = !wasOnLeftWall;
+                                impact = -vel.x;
+                                direction = {-1.f, 0.f};
+                                vel.x = -vel.x * bounce;
+                                break;
+                        }
+
+                        if (isPlayer && shake && newHit && impact > kMinShakeSpeed) {
+                            shake->frameLimit = kShakeFrames;
+                            shake->offset = (impact * kShakePerSpeed) * direction;
+                        }
                     }
                 }
             }
@@ -262,6 +267,17 @@ private:
         }
     }
 
+    // Helper function that returns True if last frame's box was diagonal to the solid
+    // not directly above/below or beside it
+    static bool IsCornerHit(const Rect& prev, const Rect& solid) {
+        const bool besideX = prev.topLeft.x + prev.width <= solid.topLeft.x + kTouchEpsilon || 
+                            prev.topLeft.x >= solid.topLeft.x + solid.width - kTouchEpsilon;
+        const bool besideY = prev.topLeft.y + prev.height <= solid.topLeft.y + kTouchEpsilon ||
+                                prev.topLeft.y >= solid.topLeft.y + solid.height - kTouchEpsilon;
+        
+        return besideX && besideY;
+    }
+    
     // Uses where the box was last frame to tell which side it came in from.
     // If it was already inside (e.g. it spawned there), takes the shortest way out
     static HitSide FindHitSide(const Rect& box, const Rect& prev, const Rect& solid) {
