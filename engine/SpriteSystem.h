@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bitset>
+#include <cmath>
 #include <unordered_map>
 
 #include "LocationComponent.h"
@@ -66,8 +67,15 @@ public:
             sf::Sprite& sprite = sprites.GetSprite(sc.textureID);
             const sf::IntRect source = sprite.getTextureRect();
 
-            sprite.setPosition({r.topLeft.x, r.topLeft.y});
-            sprite.setScale({r.width / source.size.x, r.height / source.size.y});
+            // Snap edges to whole pixels: an edge exactly on a pixel center makes
+            // SFML sample the neighbouring tile in the sheet
+            const float left = std::round(r.topLeft.x);
+            const float top = std::round(r.topLeft.y);
+            const float right = std::round(r.topLeft.x + r.width);
+            const float bottom = std::round(r.topLeft.y + r.height);
+
+            sprite.setPosition({left, top});
+            sprite.setScale({(right - left) / source.size.x, (bottom - top) / source.size.y});
             window->draw(sprite);
         }
 
