@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
     // player components
     entities.AddComponent(player, ECSEngine::LocationComponent{kPlayerStart});
     entities.AddComponent(player, ECSEngine::MovementComponent{});
-    entities.AddComponent(player, ECSEngine::GravityComponent{{0.0f, 1.0f}});
+    entities.AddComponent(player, ECSEngine::GravityComponent{{0.0f, 2.0f}});
     entities.AddComponent(player, ECSEngine::InputComponent{player});
     entities.AddComponent(player, ECSEngine::RespawnComponent{kPlayerStart});
     entities.AddComponent(player, ECSEngine::SpriteComponent{playerSprite, {{0.0f, 0.0f}, 64.0f, 64.0f}, true});

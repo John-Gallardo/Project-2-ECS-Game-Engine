@@ -6,7 +6,7 @@ namespace ECSEngine {
 
 const float kMaxRunVelocity = 15;
 const float kDashVelocity = 50;
-const float kJumpVelocity = 25;
+const float kJumpVelocity = 32;
 const float kGroundRunAcceleration = 5;
 const float kAirRunAcceleration = 4;
 const float kDashInterval = 25;
@@ -15,6 +15,8 @@ const float kDashInterval = 25;
 const int kDashFrames = 4;              // how long one dash lasts
 const float kWallSlideVelocity = 4;     // fastest fall speed while sliding down a wall
 const float kJumpCutFactor = 0.4f;      // letting go of jump early keeps 40% of the upward speed
+const float kWallJumpVelocity = 24;     // weaker than a ground jump: crossing the wide gap loses height
+const int kWallJumpLockFrames = 10;     // no steering right after a wall jump, so you can't climb one wall
 
 /**
  * Processes user input for player movement.
@@ -87,17 +89,19 @@ public:
                 continue;
             }
 
-            // Case 2: running. accelerate towards held direction, slow down when nothing is held
-            float accel = onGround ? kGroundRunAcceleration : kAirRunAcceleration;
-            if (left != right) {
-                velocity.x += right ? accel : -accel;
-            } else if (velocity.x > 0) {
-                velocity.x = std::max(0.0f, velocity.x - accel);
-            } else if (velocity.x < 0) {
-                velocity.x = std::min(0.0f, velocity.x + accel);
+            if (mFrame - mLastWallJump >= kWallJumpLockFrames) {
+                // Case 2: running. accelerate towards held direction, slow down when nothing is held
+                float accel = onGround ? kGroundRunAcceleration : kAirRunAcceleration;
+                if (left != right) {
+                    velocity.x += right ? accel : -accel;
+                } else if (velocity.x > 0) {
+                    velocity.x = std::max(0.0f, velocity.x - accel);
+                } else if (velocity.x < 0) {
+                    velocity.x = std::min(0.0f, velocity.x + accel);
+                }
+                velocity.x = std::clamp(velocity.x, -kMaxRunVelocity, kMaxRunVelocity);
             }
-            velocity.x = std::clamp(velocity.x, -kMaxRunVelocity, kMaxRunVelocity);
-
+            
             // Case 3: jump -> only jumps on a new press
             if (jumpPressed) {
                 if (onGround) {
@@ -105,8 +109,9 @@ public:
                     sounds.GetSound("jump").play();
                 } else if (onWall) {
                     // wall jump up and away from the wall
-                    velocity.y = -kJumpVelocity;
+                    velocity.y = -kWallJumpVelocity;
                     velocity.x = touching.onLeftWall ? kMaxRunVelocity : -kMaxRunVelocity;
+                    mLastWallJump = mFrame;
                     sounds.GetSound("jump").play();
                 }
             }
@@ -136,6 +141,7 @@ public:
 private:
     // Count frames for dash timer
     int mFrame{};
+    int mLastWallJump{-kWallJumpLockFrames};    // frame of the last wall jump
 
     // Helper function for checking if key is held down
     static bool Down(const InputComponent &input, unsigned int key) {

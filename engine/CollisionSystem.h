@@ -173,6 +173,9 @@ private:
 
         // The flags describe this frame only. The InputSystem reads them next frame
         const bool wasOnGround = c.onGround;
+        const bool wasOnCeiling = c.onCeiling;
+        const bool wasOnLeftWall = c.onLeftWall;
+        const bool wasOnRightWall = c.onRightWall;
         c.onGround = c.onCeiling = c.onLeftWall = c.onRightWall = 0;
 
         if (!entities.template HasComponent<MovementComponent>(owner)) {
@@ -210,10 +213,12 @@ private:
                     const HitSide side = FindHitSide(box, prev, solid.box);
                     float impact = 0; // speed going into the wall, for the screen shake
                     Point2D direction;
+                    bool newHit{}; // only shake on the first frame of touching, not while pushing into it
                     switch (side) {
                         case HitSide::kTop: // landed on it
                             loc.y -= box.topLeft.y + box.height - solid.box.topLeft.y;
                             c.onGround = 1;
+                            newHit = !wasOnGround;
                             impact = vel.y;
                             direction = {0.0f, 1.0f};
                             vel.y = -vel.y * bounce;
@@ -221,6 +226,7 @@ private:
                         case HitSide::kBottom:  // hit it with our head
                             loc.y += solid.box.topLeft.y + solid.box.height - box.topLeft.y;
                             c.onCeiling = 1;
+                            newHit = !wasOnCeiling;
                             impact = -vel.y;
                             direction = {0.0f, -1.0f};
                             vel.y = -vel.y * bounce;
@@ -228,6 +234,7 @@ private:
                         case HitSide::kLeft:    // ran into it moving right, so the wall is on our right
                             loc.x -= box.topLeft.x + box.width - solid.box.topLeft.x;
                             c.onRightWall = 1;
+                            newHit = !wasOnRightWall;
                             impact = vel.x;
                             direction = {1.f, 0.f};
                             vel.x = -vel.x * bounce;
@@ -235,13 +242,14 @@ private:
                         case HitSide::kRight:   // ran into it moving left
                             loc.x += solid.box.topLeft.x + solid.box.width - box.topLeft.x;
                             c.onLeftWall = 1;
+                            newHit = !wasOnLeftWall;
                             impact = -vel.x;
                             direction = {-1.f, 0.f};
                             vel.x = -vel.x * bounce;
                             break;
                     }
 
-                    if (isPlayer && shake && impact > kMinShakeSpeed) {
+                    if (isPlayer && shake && newHit && impact > kMinShakeSpeed) {
                         shake->frameLimit = kShakeFrames;
                         shake->offset = (impact * kShakePerSpeed) * direction;
                     }
