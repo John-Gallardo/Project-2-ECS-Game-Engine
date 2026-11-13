@@ -11,6 +11,17 @@ const float kGroundRunAcceleration = 5;
 const float kAirRunAcceleration = 4;
 const float kDashInterval = 25;
 
+// additional variables
+const int kDashFrames = 4;           // how long one dash lasts
+const float kWallSlideVelocity = 4;  // fastest fall speed while sliding down a wall
+
+/**
+ * Processes user input for player movement.
+ * A/left = move left
+ * D/right = move right
+ * W/Space/up = jump
+ * Left Shift = dash
+ */
 template <typename... Components>
 class InputSystem : public System<Components...> {
 public:
@@ -19,7 +30,116 @@ public:
         return name;
     }
 
-    tSystemReturn Run(EngineView<Components...>* engine) override { return kContinue; }
+    tSystemReturn Run(EngineView<Components...>* engine) override {
+        auto &entities{engine->GetEntityManager()};
+        auto &sounds  {engine->GetSoundManager()};
+
+        // loop through all input components
+        auto &inputs{entities.template GetComponentStorage<InputComponent>()};
+        for (size_t i{0}; i < inputs.mStorage.size(); i++) {
+            // Edge case: invalid input component
+            if (!inputs.mValid[i])
+                continue;
+            
+            EntityID owner{inputs.mOwner[i]};
+            // Edge case: needs a velocity to change and collision flags to read
+            if (!entities.template HasComponent<MovementComponent>(owner) ||
+                !entities.template HasComponent<CollisionComponent>(owner)) {
+                continue;
+            }
+
+            InputComponent &input{inputs.mStorage[i]};
+            Point2D &velocity{entities.template GetComponent<MovementComponent>(owner).velocity};
+            CollisionComponent &touching{entities.template GetComponent<CollisionComponent>(owner)};
+
+            // Booleans for keys pressed & if the player is on the ground or not
+            bool left       {Down(input, Key::Left) || Down(input, Key::A)};
+            bool right      {Down(input, Key::Right) || Down(input, Key::D)};
+            bool jumpPressed{Pressed(input, Key::Space) || Pressed(input, Key::Up) || Pressed(input, Key::W)};
+            bool onGround   {static_cast<bool>(touching.onGround)};
+            bool onWall     {!onGround && (touching.onLeftWall || touching.onRightWall)};
+
+            // Case 1: new left shift press -> do a dash after kDashInterval frames have passed
+            if (mFrame - input.lastDash >= kDashInterval && Pressed(input, Key::LShift)) {
+                // dash direction you are holding, otherwise the way you are already moving.
+                float direction{static_cast<float>(right) - static_cast<float>(left)};
+                if (direction == 0) {
+                    direction = static_cast<float>((velocity.x > 0) - (velocity.x < 0));
+                }
+
+                if (direction != 0) {
+                    velocity = {direction * kDashVelocity, 0.0f};
+
+                    // GravitySystem skips this entity while disabledTimer counts down
+                    if (entities.template HasComponent<GravityComponent>(owner)) {
+                        entities.template GetComponent<GravityComponent>(owner).disabledTimer = kDashFrames;
+                    }
+
+                    input.lastDash = mFrame;
+                    sounds.GetSound("dash").play();
+                }
+            }
+
+            // No steering allowed while dashing
+            if (mFrame - input.lastDash < kDashFrames) {
+                continue;
+            }
+
+            // Case 2: running. accelerate towards held direction, slow down when nothing is held
+            float accel = onGround ? kGroundRunAcceleration : kAirRunAcceleration;
+            if (left != right) {
+                velocity.x += right ? accel : -accel;
+            } else if (velocity.x > 0) {
+                velocity.x = std::max(0.0f, velocity.x - accel);
+            } else if (velocity.x < 0) {
+                velocity.x = std::min(0.0f, velocity.x + accel);
+            }
+            velocity.x = std::clamp(velocity.x, -kMaxRunVelocity, kMaxRunVelocity);
+
+            // Case 3: jump -> only jumps on a new press
+            if (jumpPressed) {
+                if (onGround) {
+                    velocity.y = -kJumpVelocity;
+                    sounds.GetSound("jump").play();
+                } else if (onWall) {
+                    // wall jump up and away from the wall
+                    velocity.y = -kJumpVelocity;
+                    velocity.x = touching.onLeftWall ? kMaxRunVelocity : -kMaxRunVelocity;
+                    sounds.GetSound("jump").play();
+                }
+            }
+
+            // Case 4: wall slide -> falling while pushing into wall caps fall speed
+            const bool pushingIntoWall{(touching.onLeftWall && left) || (touching.onRightWall && right)};
+            if (onWall && pushingIntoWall && velocity.y > 0) {
+                velocity.y = std::min(velocity.y, kWallSlideVelocity);
+                sf::Sound &slide{sounds.GetSound("wallslide")};
+
+                // don't restart sound while it's still playing since this runs every frame
+                if (slide.getStatus() != sf::Sound::Status::Playing) {
+                    slide.play();
+                }
+            }
+
+        }
+
+        mFrame++;
+        return kContinue;
+    }
+private:
+    // Count frames for dash timer
+    int mFrame{};
+
+    // Helper function for checking if key is held down
+    static bool Down(const InputComponent &input, unsigned int key) {
+        return input.keydown[key];
+    }
+
+    // Helper function for checking if is down now but not the last frame (new press)
+    static bool Pressed(const InputComponent &input, unsigned int key) {
+        return input.keydown[key] && !input.lastKeydown[key];
+    }
+
 };
 
 }  // namespace ECSEngine
