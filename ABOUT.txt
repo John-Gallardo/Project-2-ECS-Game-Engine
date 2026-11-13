@@ -1,0 +1,24 @@
+We implemented the platformer as close to the given spec as we could. What basically happens is that the engine is created in main, and:
+1. Sounds are loaded
+2. Maps are loaded (sky first so its sprites are drawn BEHIND the world)
+3. Bonus star is placed
+4. Player is placed & given components
+5. Score component is set up
+6. Camera is placed
+7. Systems are added to the system manager
+and the engine runs.
+
+Movement controls:
+A/left = move left
+D/right = move right
+Z/W/Space/Up = jump (let go early for a lower jump)
+C/Left Shift = dash
+
+Debug keys:
+F1 = pause
+F2 = step one frame
+F3 = toggle collision boxes
+
+Breakdown of work:
+Jensen: Entity manager, sound manager, sprite manager, sprite system, spawn system, camera system and main game loop
+John: Window manager, gravity system, movement system, input system, and score system
