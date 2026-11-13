@@ -173,6 +173,16 @@ int main(int argc, char* argv[]) {
     LoadMap(engine, gResourcePath, "sky.map");
     LoadMap(engine, gResourcePath, "world.map");
 
+    // One extra star past the first wall, to test wall jumping
+    // It has no MovementComponent, so it floats in place until collected
+    const ECSEngine::EntityID bonusStar = entities.CreateEntity("star");
+    const ECSEngine::SpriteID starSprite = sprites.RegisterTexture(gResourcePath + kStarSheet, kStarSource);
+    entities.AddComponent(bonusStar, ECSEngine::LocationComponent{{33 * 64.0f, 2 * 64.0f}});
+    entities.AddComponent(bonusStar, ECSEngine::SpriteComponent{starSprite, {{0.0f, 0.0f}, 64.0f, 64.0f}, true});
+    ECSEngine::CollisionComponent bonusCollision{};
+    bonusCollision.collisionBox ={{0.0f, 0.0f}, 64.0f, 64.0f};
+    entities.AddComponent(bonusStar, bonusCollision);
+
     // Place player
     const ECSEngine::Point2D kPlayerStart{832.f, 512.f};
     const ECSEngine::SpriteID playerSprite = sprites.RegisterTexture(gResourcePath + "spritesheet-characters-default.png", {{0.0f, 0.0f}, 128.0f, 128.0f});
