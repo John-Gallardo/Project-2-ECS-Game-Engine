@@ -82,7 +82,7 @@ public:
         }
         ResolveDynamicPairs(engine);
 
-        // Removed after the loops so not slot disappears while it is being checked
+        // Removed after the loops so no slot disappears while it is being checked
         for (EntityID star : mToRemove) {
             entities.RemoveEntity(star);
         }
@@ -208,7 +208,7 @@ private:
                     }
 
                     const HitSide side = FindHitSide(box, prev, solid.box);
-                    float impact = 0; //speed going into the wall, for the screen shake
+                    float impact = 0; // speed going into the wall, for the screen shake
                     Point2D direction;
                     switch (side) {
                         case HitSide::kTop: // landed on it
@@ -218,7 +218,7 @@ private:
                             direction = {0.0f, 1.0f};
                             vel.y = -vel.y * bounce;
                             break;
-                        case HitSide::kBottom:  // hit it with out head
+                        case HitSide::kBottom:  // hit it with our head
                             loc.y += solid.box.topLeft.y + solid.box.height - box.topLeft.y;
                             c.onCeiling = 1;
                             impact = -vel.y;

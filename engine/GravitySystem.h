@@ -1,10 +1,26 @@
 #pragma once
 
+#include <algorithm>
+
+#include "EntityManager.h"
+#include "InputComponent.h"
+#include "Keyboard.h"
+#include "LocationComponent.h"
+#include "SystemManager.h"
+
 namespace ECSEngine
 {
 
+// Constants
+const float kFallGravityScale = 2.0f;       // falling pulls harder than rising
+const float kFastFallGravityScale = 3.0f;   // holding down pulls harder still
+const float kMaxFallVelocity = 20.0f;
+const float kMaxFastFallVelocity = 35.0f;   // kept under a tile's height so nothing falls through one
+
 /**
  * Adds each entity's gravity acceleration to its velocity once per frame
+ * Falling uses stronger gravity than rising, and holding down (player only)
+ * makes it stronger again. Fall speed is capped.
  */
 template <typename... Components>
 class GravitySystem : public System<Components...> {
@@ -35,10 +51,27 @@ public:
                 continue;
             }
 
-            // Add gravity to current velocity
             Point2D &velocity = entities.template GetComponent<MovementComponent>(owner).velocity;
+            const bool holdingDown{entities.template HasComponent<InputComponent>(owner) &&
+                                   (entities.template GetComponent<InputComponent>(owner).keydown[Key::Down] ||
+                                    entities.template GetComponent<InputComponent>(owner).keydown[Key::S])};
+
+            float scale{1.0f};
+            float maxFall{kMaxFallVelocity};
+            
+            if (holdingDown) {
+                scale = kFastFallGravityScale;
+                maxFall = kMaxFastFallVelocity;
+            } 
+            
+            else if (velocity.y > 0) {
+                scale = kFallGravityScale;
+            }
+
+            // Add gravity to current velocity
             velocity.x += gravity.acceleration.x;
-            velocity.y += gravity.acceleration.y;
+            velocity.y += gravity.acceleration.y * scale;
+            velocity.y = std::min(velocity.y, maxFall);
         }
         return kContinue;
 	}

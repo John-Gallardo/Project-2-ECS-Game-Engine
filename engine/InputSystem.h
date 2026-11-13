@@ -12,15 +12,16 @@ const float kAirRunAcceleration = 4;
 const float kDashInterval = 25;
 
 // additional variables
-const int kDashFrames = 4;           // how long one dash lasts
-const float kWallSlideVelocity = 4;  // fastest fall speed while sliding down a wall
+const int kDashFrames = 4;              // how long one dash lasts
+const float kWallSlideVelocity = 4;     // fastest fall speed while sliding down a wall
+const float kJumpCutFactor = 0.4f;      // letting go of jump early keeps 40% of the upward speed
 
 /**
  * Processes user input for player movement.
  * A/left = move left
  * D/right = move right
- * W/Space/up = jump
- * Left Shift = dash
+ * Z/W/Space/Up = jump (let go early for a lower jump)
+ * C/Left Shift = dash
  */
 template <typename... Components>
 class InputSystem : public System<Components...> {
@@ -55,12 +56,13 @@ public:
             // Booleans for keys pressed & if the player is on the ground or not
             bool left       {Down(input, Key::Left) || Down(input, Key::A)};
             bool right      {Down(input, Key::Right) || Down(input, Key::D)};
-            bool jumpPressed{Pressed(input, Key::Space) || Pressed(input, Key::Up) || Pressed(input, Key::W)};
+            bool jumpPressed {JumpKey(input.keydown) && !JumpKey(input.lastKeydown)};
+            bool jumpReleased{!JumpKey(input.keydown) && JumpKey(input.lastKeydown)};
             bool onGround   {static_cast<bool>(touching.onGround)};
             bool onWall     {!onGround && (touching.onLeftWall || touching.onRightWall)};
 
             // Case 1: new left shift press -> do a dash after kDashInterval frames have passed
-            if (mFrame - input.lastDash >= kDashInterval && Pressed(input, Key::LShift)) {
+            if (mFrame - input.lastDash >= kDashInterval && (Pressed(input, Key::C) || Pressed(input, Key::LShift))) {
                 // dash direction you are holding, otherwise the way you are already moving.
                 float direction{static_cast<float>(right) - static_cast<float>(left)};
                 if (direction == 0) {
@@ -109,6 +111,11 @@ public:
                 }
             }
 
+            // Case 3b: short hop -> letting go of jump while still going up cuts the jump
+            if (jumpReleased && velocity.y < 0) {
+                velocity.y *= kJumpCutFactor;
+            }
+
             // Case 4: wall slide -> falling while pushing into wall caps fall speed
             const bool pushingIntoWall{(touching.onLeftWall && left) || (touching.onRightWall && right)};
             if (onWall && pushingIntoWall && velocity.y > 0) {
@@ -125,7 +132,7 @@ public:
 
         mFrame++;
         return kContinue;
-    }
+    }    
 private:
     // Count frames for dash timer
     int mFrame{};
@@ -138,6 +145,11 @@ private:
     // Helper function for checking if is down now but not the last frame (new press)
     static bool Pressed(const InputComponent &input, unsigned int key) {
         return input.keydown[key] && !input.lastKeydown[key];
+    }
+
+    // Helper function for checking if any jump key is down in a key set
+    static bool JumpKey(const std::bitset<sf::Keyboard::ScancodeCount> &keys) {
+        return keys[Key::Z] || keys[Key::Space] || keys[Key::Up] || keys[Key::W];
     }
 
 };
