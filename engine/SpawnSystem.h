@@ -5,7 +5,9 @@
 
 #include "CollisionComponent.h"
 #include "EntityManager.h"
+#include "GravityComponent.h"
 #include "LocationComponent.h"
+#include "MovementComponent.h"
 #include "SpawnComponent.h"
 #include "SpriteComponent.h"
 #include "SystemManager.h"

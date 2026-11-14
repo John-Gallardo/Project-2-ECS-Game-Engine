@@ -4,6 +4,8 @@
 #include <cmath>
 
 #include "CameraComponent.h"
+#include "CameraFollowerComponent.h"
+#include "CameraShakeComponent.h"
 #include "CollisionComponent.h"
 #include "EntityManager.h"
 #include "LocationComponent.h"

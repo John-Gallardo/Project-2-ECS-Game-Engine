@@ -7,11 +7,13 @@
 #include <utility>
 #include <vector>
 
-#include "CameraComponent.h"
+#include "CameraShakeComponent.h"
 #include "CollisionComponent.h"
 #include "EntityManager.h"
 #include "InputComponent.h"
 #include "LocationComponent.h"
+#include "MovementComponent.h"
+#include "RespawnComponent.h"
 #include "ScoreComponent.h"
 #include "SystemManager.h"
 

@@ -4,6 +4,7 @@
 
 #include "EntityManager.h"
 #include "LocationComponent.h"
+#include "MovementComponent.h"
 #include "SystemManager.h"
 
 namespace ECSEngine {

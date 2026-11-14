@@ -3,9 +3,11 @@
 #include <algorithm>
 
 #include "EntityManager.h"
+#include "GravityComponent.h"
 #include "InputComponent.h"
 #include "Keyboard.h"
 #include "LocationComponent.h"
+#include "MovementComponent.h"
 #include "SystemManager.h"
 
 namespace ECSEngine

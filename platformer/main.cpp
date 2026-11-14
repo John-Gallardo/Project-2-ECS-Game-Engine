@@ -5,18 +5,23 @@
 #include <string>
 #include <unordered_map>
 
+#include "CameraFollowerComponent.h"
+#include "CameraShakeComponent.h"
 #include "CameraSystem.h"
 #include "CollisionComponent.h"
 #include "CollisionLateSystem.h"
 #include "CollisionSystem.h"
 #include "ECSEngine.h"
 #include "EntityManager.h"
+#include "GravityComponent.h"
 #include "GravitySystem.h"
 #include "InputComponent.h"
 #include "InputSystem.h"
 #include "LocationComponent.h"
 #include "MathUtil.h"
+#include "MovementComponent.h"
 #include "MovementSystem.h"
+#include "RespawnComponent.h"
 #include "ScoreComponent.h"
 #include "ScoreSystem.h"
 #include "SpawnComponent.h"

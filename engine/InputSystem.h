@@ -7,9 +7,10 @@
 
 #include "CollisionComponent.h"
 #include "EntityManager.h"
+#include "GravityComponent.h"
 #include "InputComponent.h"
 #include "Keyboard.h"
-#include "LocationComponent.h"
+#include "MovementComponent.h"
 #include "SoundManager.h"
 #include "SystemManager.h"
 
