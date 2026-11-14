@@ -17,11 +17,9 @@ const float kFastFallGravityScale = 3.0f;   // holding down pulls harder still
 const float kMaxFallVelocity = 20.0f;
 const float kMaxFastFallVelocity = 35.0f;   // kept under a tile's height so nothing falls through one
 
-/**
- * Adds each entity's gravity acceleration to its velocity once per frame
- * Falling uses stronger gravity than rising, and holding down (player only)
- * makes it stronger again. Fall speed is capped.
- */
+// Adds each entity's gravity to its velocity once per frame.
+// Falling uses stronger gravity than rising, and holding down (player only)
+// makes it stronger again. Fall speed is capped.
 template <typename... Components>
 class GravitySystem : public System<Components...> {
 public:

@@ -1,6 +1,19 @@
 #pragma once
 
+#include <algorithm>
+#include <bitset>
+#include <iostream>
+#include <string>
+
+#include "CollisionComponent.h"
+#include "EntityManager.h"
+#include "InputComponent.h"
 #include "Keyboard.h"
+#include "LocationComponent.h"
+#include "SoundManager.h"
+#include "SystemManager.h"
+
+
 
 namespace ECSEngine {
 
@@ -19,13 +32,11 @@ const float kWallJumpVelocity = 26;     // upward part of a wall jump
 const float kWallKickVelocity = 12;      // sideways push away from the wall
 const int kWallJumpLockFrames = 4;     // no steering right after kicking off a wall
 
-/**
- * Processes user input for player movement.
- * A/left = move left
- * D/right = move right
- * Z/W/Space/Up = jump (let go early for a lower jump)
- * C/Left Shift = dash
- */
+// Turns the keys held this frame into player movement.
+// A/Left = move left         
+// D/Right = move right
+// Z/W/Space/Up = jump (let go early for a lower jump)
+// C/Left Shift = dash
 template <typename... Components>
 class InputSystem : public System<Components...> {
 public:

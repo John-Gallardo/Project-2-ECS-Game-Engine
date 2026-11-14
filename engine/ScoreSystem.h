@@ -13,11 +13,8 @@ namespace ECSEngine {
 // globals
 const int kMaxScore{999};  // only 3 digits -> 999 is max
 
-/**
- * Shows the score on the screen -> split into 3 components, ones, tens, hundreds.
- * CollisionSystem is what adds to the score when a star is collected by the player
- *
- */
+// Shows the score on screen as three digits (hundreds, tens, ones).
+// CollisionSystem is what adds to the score when the player collects a star.
 template <typename... Components>
 class ScoreSystem : public System<Components...> {
 public:

@@ -51,18 +51,16 @@ struct MapTile {
     ECSEngine::Rect collide;  // relative to the tile's top-left corner
 };
 
-/*
-    Loads a map file and creates one entity per tile. Format (see the project spec):
-    dictionary <1|2>
-    <char> <sheet> <sx sy sw sh> [<bx by bw bh>]   one line per tile type; the
-                                                 box is only there for type 2
-    map origin <left top> tile <width height> size <columns rows>
-    <rows lines of `columns` characters; characters not in the dictionary are empty>
-
-    Every tile gets a LocationComponent and SpriteComponent. Type 2 tiles also get a
-    static CollisionComponent, and 'S' tiles also get a star SpawnComponent.
-    Throws std::runtime_error if the file is missing or malformed.
-*/
+// Loads a map file and creates one entity per tile.
+//
+// File format (from the project spec)
+//   dictionary <1|2>
+//   <char> <sheet> <sprite rect> [<collision box>]   one line per tile type
+//   map origin <left top> tile <width height> size <columns rows>
+//   <the grid: one character per tile, unknown characters are empty>
+//
+// Every tile gets a location and a sprite. With "dictionary 2" tiles are also
+// solid, and 'S' tiles also spawn stars. Throws if the file is missing or broken.
 void LoadMap(Engine& engine, const std::string& path, const std::string& file) {
     std::ifstream in(path + file);
     if (!in) throw std::runtime_error("LoadMap: could not open '" + path + file + "'");
@@ -186,8 +184,8 @@ int main(int argc, char* argv[]) {
     // Place player
     const ECSEngine::Point2D kPlayerStart{832.f, 512.f};
     const ECSEngine::SpriteID playerSprite = sprites.RegisterTexture(gResourcePath + "spritesheet-characters-default.png", {{0.0f, 0.0f}, 128.0f, 128.0f});
-
     const ECSEngine::EntityID player = entities.CreateEntity("player");
+    
     // player components
     entities.AddComponent(player, ECSEngine::LocationComponent{kPlayerStart});
     entities.AddComponent(player, ECSEngine::MovementComponent{});

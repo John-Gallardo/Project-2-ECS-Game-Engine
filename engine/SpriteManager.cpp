@@ -5,6 +5,20 @@
 
 namespace ECSEngine {
 
+// Loads textures and hands out sprites cut from them.
+//
+// How it works
+//   - mTextures holds each image file, keyed by path, so a file loads once.
+//   - mSprites holds one sf::Sprite per RegisterTexture call. A SpriteID is
+//     just an index into it.
+//   - Many sprites can share one texture (e.g. every tile uses the same sheet).
+//
+// Lifetimes
+//   - The SpriteManager owns every texture and sprite; callers never free them.
+//   - A SpriteID stays valid for the SpriteManager's whole life.
+//   - GetSprite references last only until the next RegisterTexture (the
+//     vector may grow and move). Store the SpriteID, not the reference.
+
 SpriteID SpriteManager::RegisterTexture(const std::string& texturePath, const Rect& sourceRect) {
     const sf::Texture& texture = LoadTexture(texturePath);
     const sf::IntRect area({static_cast<int>(sourceRect.topLeft.x),

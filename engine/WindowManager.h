@@ -8,6 +8,10 @@
 
 namespace ECSEngine {
 
+// Owns the game window and converts between world and window coordinates, e.g.
+//   Rect onScreen = windowManager.WorldToWindow(worldRect);
+//   windowManager.DebugFrameRect(onScreen, 255, 0, 0);
+// See WindowManager.cpp for how it works and how long values stay valid.
 class WindowManager {
 public:
     WindowManager(unsigned int width, unsigned int height, const std::string& title);
@@ -34,8 +38,7 @@ public:
 
 private:
     std::shared_ptr<sf::RenderWindow> mWindow;
-    // Member variables for camera, world center, etc...
-    Point2D mWorldCenter;
+    Point2D mWorldCenter;              // world point shown at the window's center
     float mWorldUnitsPerPixel = 1.0f;  // 1:1 until the game sets a scale
 };
 

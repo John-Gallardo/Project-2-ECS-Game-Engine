@@ -14,36 +14,26 @@
 
 namespace ECSEngine {
 
-// Owns every entity and every component in the game.
+// Owns every entity and component in the game.
 //
-// Memory layout
-//   - Entities live in one vector. An EntityID is an index into it.
-//   - Each component type T has its own ComponentStorage<T> (a pool). An
-//     entity's T, if it has one, sits at some slot in that pool. A per-entity
-//     table maps (entity, component type) to the slot, or kNullComponent.
-//   - Removing an entity or component leaves a gap. Gaps go on a free list and
-//     are reused by the next create/add, so the vectors stay compact.
+// How it works
+//   - Entities live in a vector. An EntityID is just an index into it.
+//   - Each component type has its own pool (ComponentStorage<T>).
+//   - mComponentSlots records which slot in each pool belongs to an entity.
+//   - Removed entities and components leave gaps that are reused later.
 //
-// Rules for callers (who may hold what, and for how long)
-//   - The EntityManager owns all entities and components; callers never delete
-//     or free anything themselves.
-//   - An EntityID stays valid until RemoveEntity is called on it. After that the
-//     ID may be handed out again to a brand-new entity, so code that stores IDs
-//     (e.g. a camera follower) must stop using an ID once its entity is removed.
-//     Use IsValid() to check an ID before using it.
-//   - References from GetComponent<T>() and iterators/references into
-//     GetComponentStorage<T>() are only valid until the next AddComponent<T>
-//     (any entity) or RemoveEntity, because the storage vector may reallocate.
-//     Re-fetch them each frame; do not store them.
-//   - Entity iterators are invalidated by CreateEntity. Iteration visits removed
-//     slots too: always skip entities where IsValid() is false.
+// Lifetimes
+//   - The EntityManager frees everything; callers never delete anything.
+//   - An ID can be reused after RemoveEntity, so check IsValid() on stored IDs.
+//   - Component references last only until the next AddComponent or
+//     RemoveEntity (the pool may grow and move). Don't store them.
+//   - CreateEntity invalidates entity iterators. Loops must skip invalid entities.
 template <typename... Components>
 class EntityManager {
 public:
     static constexpr size_t kNullComponent = std::numeric_limits<size_t>::max();
 
-    // Creates an entity with no components. `name` describes the entity's type
-    // (e.g. "player", "star"). Returns its ID, which may be a recycled ID.
+    // Makes an entity with no components and returns its ID. `name` is its type, e.g. "player".
     [[nodiscard]] EntityID CreateEntity(const std::string& name) {
         EntityID id;
         if (!mFreeEntities.empty()) {
@@ -59,17 +49,15 @@ public:
         return id;
     }
 
-    // Removes the entity and all of its components. `entity` must be valid.
-    // The ID becomes invalid and may be reused by a later CreateEntity.
+    // Deletes the entity and all its components. Its ID may be reused later.
     void RemoveEntity(EntityID entity) {
         assert(IsValid(entity));
         (RemoveComponent<Components>(entity), ...);
-        mEntities[entity] = Entity();  // default Entity has kNullEntity as its ID
+        mEntities[entity] = Entity();  // a default Entity counts as invalid
         mFreeEntities.push_back(entity);
     }
 
-    // Gives `entity` a copy of `component`. If the entity already has a T, the
-    // old value is replaced. `entity` must be valid.
+    // Adds a T to the entity, or replaces the one it already has.
     template <typename T>
     void AddComponent(EntityID entity, T component) {
         assert(IsValid(entity));
@@ -95,7 +83,7 @@ public:
         }
     }
 
-    // Removes the entity's T. Does nothing if the entity has no T or is invalid.
+    // Removes the entity's T, if it has one.
     template <typename T>
     void RemoveComponent(EntityID entity) {
         if (!HasComponent<T>(entity)) return;
@@ -107,30 +95,27 @@ public:
         slot = kNullComponent;
     }
 
-    // True if `entity` is valid and has a T. Safe to call with any ID.
+    // True if the entity exists and has a T. Safe with any ID.
     template <typename T>
     bool HasComponent(EntityID entity) const {
         return IsValid(entity) && mComponentSlots[entity][IndexOf<T>()] != kNullComponent;
     }
 
-    // Returns the entity's T. The entity must have one (check HasComponent).
-    // See the class comment for how long the reference stays valid.
+    // Returns the entity's T. Check HasComponent first.
     template <typename T>
     T& GetComponent(EntityID entity) {
         assert(HasComponent<T>(entity));
         return GetComponentStorage<T>().mStorage[mComponentSlots[entity][IndexOf<T>()]];
     }
 
-    // Direct access to every T, for systems that only need to walk one
-    // component type. Skip slots where mValid[i] is false; mOwner[i] is the
-    // entity that owns slot i. Do not add or remove slots through this
-    // reference; use AddComponent/RemoveComponent.
+    // The whole pool of T, for systems that loop over one component type.
+    // Skip slots where mValid[i] is false; mOwner[i] is the slot's entity.
     template <typename T>
     ComponentStorage<T>& GetComponentStorage() {
         return std::get<ComponentStorage<T>>(mStorages);
     }
 
-    // True if `entity` refers to an entity that exists right now.
+    // True if the entity exists right now.
     bool IsValid(EntityID entity) const {
         return entity < mEntities.size() && mEntities[entity].IsValid();
     }
@@ -143,7 +128,7 @@ public:
     const_iterator end() { return mEntities.end(); }
 
 private:
-    // Position of T in the Components... list, used to index mComponentSlots.
+    // Position of T in the Components list (column in mComponentSlots).
     template <typename T>
     static constexpr size_t IndexOf() {
         static_assert((std::is_same_v<T, Components> || ...),
@@ -157,7 +142,7 @@ private:
 
     tEntity mEntities;
     std::vector<EntityID> mFreeEntities;  // removed IDs waiting to be reused
-    // mComponentSlots[entity][IndexOf<T>()] = slot of the entity's T, or kNullComponent
+    // [entity][IndexOf<T>()] = slot of the entity's T in its pool, or kNullComponent
     std::vector<std::array<size_t, sizeof...(Components)>> mComponentSlots;
     std::tuple<ComponentStorage<Components>...> mStorages;
 };

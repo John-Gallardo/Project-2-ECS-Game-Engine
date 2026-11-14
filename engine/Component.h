@@ -6,6 +6,10 @@
 
 namespace ECSEngine {
 
+// The pool for one component type, owned by the EntityManager.
+//   - Slot i holds a T in mStorage[i]. It is only in use when mValid[i] is true.
+//   - Systems may read and change the T values, but add or remove slots only
+//     through EntityManager::AddComponent / RemoveComponent.
 template <typename T>
 class ComponentStorage {
 public:

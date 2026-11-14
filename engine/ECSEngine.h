@@ -23,6 +23,11 @@
 
 namespace ECSEngine {
 
+// What systems see of the engine: one getter per resource manager.
+//   - Systems fetch managers through these getters on every Run; they never
+//     keep their own pointer to a manager.
+//   - The returned references are valid for the engine's whole life. Data you
+//     get from a manager has its own rules (see that manager's comment).
 template <typename... Components>
 class EngineView {
 public:
@@ -38,8 +43,10 @@ public:
     ECSEngine(unsigned int width, unsigned int height, const std::string& name);
     ~ECSEngine();
 
+    // Runs every system once per frame until a system returns kExit or the window closes.
     void Run();
 
+    // The engine owns all managers. Each reference is valid as long as the engine exists.
     SoundManager& GetSoundManager() override { return mSoundManager; }
 
     SpriteManager& GetSpriteManager() override { return mSpriteManager; }
@@ -48,6 +55,7 @@ public:
 
     WindowManager& GetWindowManager() override { return mWindowManager; }
 
+    // Only used by main to add systems; systems themselves don't see it.
     SystemManager<Components...>& GetSystemManager() { return mSystemManager; }
 
 private:

@@ -8,6 +8,11 @@ We implemented the platformer as close to the given spec as we could. What basic
 7. Systems are added to the system manager
 and the engine runs.
 
+Notes about implementation:
+- **Wall Jump**: we implemented the wall jump so that while pressing in the direction of the wall
+and press jump you can climb the wall.
+- **Player Sprite Size**: we used 64x64 screen width and height for the player size 
+
 Movement controls:
 A/left = move left
 D/right = move right
@@ -20,5 +25,8 @@ F2 = step one frame
 F3 = toggle collision boxes
 
 Breakdown of work:
-Jensen: Entity manager, sound manager, sprite manager, sprite system, spawn system, camera system and main game loop
+Jensen: Entity manager, sound manager, sprite manager, collision system, sprite system, spawn system, camera system and main game loop
 John: Window manager, gravity system, movement system, input system, and score system
+
+AI Usage:
+We used AI to break the project into tasks and then assigned each task equally between us. We did not use any AI to write code.

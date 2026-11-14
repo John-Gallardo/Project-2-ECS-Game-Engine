@@ -16,12 +16,10 @@ namespace ECSEngine {
 const float kCameraSnapDistance = 1.0f;
 const float kShakeDecay = 0.7f; // each frame the shake keeps 70% of its size
 
-/**
-    * Moves the camera along x to follow the CameraFollower's entity. The y stays fixed
-    * The target is never allowed outside hardExclusion (the camera follows it directly there).
-    * Outside softExclusion the camera tweens toward it at camera.speed until it is back inside
-    * Camera shake is added on top for the frame only, so it never moves the real camera
-*/
+// Moves the camera along x to follow the CameraFollower's entity (y stays fixed).
+//   - Outside softExclusion the camera eases toward the target at camera.speed.
+//   - The target can never leave hardExclusion; there the camera follows it directly.
+//   - Shake is added for this frame only, so it never moves the real camera.
 template <typename... Components>
 class CameraSystem : public System<Components...> {
 public:

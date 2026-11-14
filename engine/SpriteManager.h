@@ -14,41 +14,27 @@ namespace ECSEngine {
 // Index of a sprite inside the SpriteManager, returned by RegisterTexture.
 using SpriteID = size_t;
 
-// Loads textures and hands out sprites cut from them.
-//
-// Ownership and lifetime
-//   - The SpriteManager owns every texture and sprite. Callers never free them.
-//   - Each texture file is loaded once and shared by every sprite that uses it.
-//     Textures live in an unordered_map, whose elements never move, so the
-//     texture a sprite points at stays valid for the SpriteManager's lifetime.
-//   - A SpriteID stays valid for the SpriteManager's lifetime (sprites are
-//     never removed).
-//   - The reference returned by GetSprite is only valid until the next
-//     RegisterTexture call, because the sprite vector may reallocate. Look it up
-//     by SpriteID when you need it; do not store the reference. Register all
-//     textures while loading, before the game loop starts.
+// Loads textures and hands out sprites cut from them, e.g.
+//   SpriteID star = sprites.RegisterTexture(path + "tiles.png", {{640, 320}, 64, 64});
+//   sprites.GetSprite(star);   // in a system
+// See SpriteManager.cpp for how it works and how long references stay valid.
 class SpriteManager {
 public:
     SpriteManager() = default;
     ~SpriteManager() = default;
 
-    // Copying would leave the copied sprites pointing at the other manager's
-    // textures, so a SpriteManager cannot be copied.
+    // No copying: copied sprites would still point at the original's textures.
     SpriteManager(const SpriteManager&) = delete;
     SpriteManager& operator=(const SpriteManager&) = delete;
 
-    // Makes a sprite showing the `sourceRect` part (in pixels) of the image at
-    // `texturePath`. The file is only loaded the first time its path is seen.
-    // Throws std::runtime_error if the file cannot be loaded; nothing is added
-    // in that case.
+    // Makes a sprite showing the `sourceRect` part (in pixels) of the image. Throws if it can't load.
     [[nodiscard]] SpriteID RegisterTexture(const std::string& texturePath, const Rect& sourceRect);
 
-    // Returns the sprite for `id`, which must come from RegisterTexture.
-    // Callers may change its position/scale/colour before drawing it.
+    // Returns the sprite for `id`. Callers may set its position/scale before drawing.
     sf::Sprite& GetSprite(SpriteID id);
 
 private:
-    // Returns the texture for `path`, loading it if this is the first request.
+    // Returns the texture for `path`, loading it the first time.
     const sf::Texture& LoadTexture(const std::string& path);
 
     std::unordered_map<std::string, sf::Texture> mTextures;  // keyed by file path

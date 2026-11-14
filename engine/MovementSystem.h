@@ -1,10 +1,23 @@
 #pragma once
 
+#include <string>
+
+#include "EntityManager.h"
+#include "LocationComponent.h"
+#include "SystemManager.h"
+
 namespace ECSEngine {
 
-/**
- * Moves every entity by its velocity once per frame
- */
+// Moves every entity by its velocity once per frame.
+//
+// How it works
+//   - Only entities with both a MovementComponent and a LocationComponent move.
+//   - Velocity is in world units per frame (the game runs at a fixed 60 fps,
+//     so there is no delta time).
+//   - Runs after InputSystem and GravitySystem have set this frame's velocity,
+//     and before CollisionSystem, which pushes entities back out of walls.
+//   - It does not check for walls itself; a fast entity can end up inside one
+//     until CollisionSystem fixes it.
 template <typename... Components>
 class MovementSystem : public System<Components...> {
 public:
@@ -28,7 +41,7 @@ public:
             if (!entities.template HasComponent<LocationComponent>(owner))
                 continue;
 
-            // Add entity's velocity to its position
+            // position += velocity
             Point2D &velocity{movements.mStorage[i].velocity};
             Point2D &location{entities.template GetComponent<LocationComponent>(owner).loc};
             location.x += velocity.x;

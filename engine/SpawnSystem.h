@@ -20,10 +20,8 @@ const float kStarGravity = 0.5f;    // lighter than the player's, so stars float
 const float kTwoPi = 6.2831853f;
 
 
-/**
-    * Counts down every spawner. When a spawner's timer runs out, a star is created
-    * just above it, flying in a random direction. Stops after totalSpawns stars.
-*/
+// Counts down every spawner. When a spawner's timer runs out, a star is created
+// just above it, flying in a random direction. Stops after totalSpawns stars.
 template <typename... Components>
 class SpawnSystem : public System<Components...> {
 public:
